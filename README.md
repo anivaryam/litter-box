@@ -58,7 +58,14 @@ box.poop("<p>x</p>");
 | `list()` | `string[]` | current shit ids |
 
 Events: `litter:poop`, `litter:scoop`, `litter:full` (React: `onPoop`, `onScoop`,
-`onFull`).
+`onFull`). `scoopAll()` emits one `litter:scoop` per shit removed (no separate bulk event).
+
+## Styling
+
+The box's chrome lives in a shadow root and adapts to light/dark via
+`prefers-color-scheme`. Override these CSS custom properties on the host to theme it:
+`--litter-gap`, `--litter-radius`, `--litter-bg`, `--litter-surface`, `--litter-border`,
+`--litter-ink`, `--litter-accent`, `--litter-danger`, `--litter-min-height`.
 
 ## Isolation
 

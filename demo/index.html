@@ -111,7 +111,7 @@
       document.body.setAttribute('data-ran', '1');
     <\/script></body></html>`;
 
-    const refresh = () => { count.textContent = box.list().length + ' shits'; };
+    const refresh = () => { const n = box.list().length; count.textContent = n + (n === 1 ? ' shit' : ' shits'); };
 
     document.getElementById('poop').onclick = () => box.poop(sample);
     document.getElementById('poop-evil').onclick = () => box.poop(evil);
