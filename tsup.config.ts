@@ -9,7 +9,7 @@ export default defineConfig([
     external: ["react", "react-dom"],
   },
   {
-    entry: { "litter-box.global": "src/index.ts" },
+    entry: { "litter-box": "src/index.ts" },
     format: ["iife"],
     globalName: "LitterBoxLib",
     minify: true,
