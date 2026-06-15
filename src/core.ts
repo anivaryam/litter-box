@@ -105,6 +105,23 @@ export class LitterBox {
     dz.className = "dropzone";
     dz.textContent = "Drop .html here or paste HTML";
     dz.tabIndex = 0;
+
+    dz.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dz.classList.add("dragover");
+    });
+    dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
+    dz.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dz.classList.remove("dragover");
+      void readDropped((e as DragEvent).dataTransfer).then((html) => {
+        if (html != null) this.poop(html);
+      });
+    });
+    dz.addEventListener("paste", (e) => {
+      const html = readPasted((e as ClipboardEvent).clipboardData);
+      if (html != null) this.poop(html);
+    });
     return dz;
   }
 
@@ -113,4 +130,18 @@ export class LitterBox {
       new CustomEvent(type, { detail, bubbles: true, composed: true }),
     );
   }
+}
+
+async function readDropped(dt: DataTransfer | null): Promise<string | null> {
+  if (!dt) return null;
+  const file = dt.files?.[0];
+  if (file) return await file.text();
+  const txt = dt.getData("text/html") || dt.getData("text/plain");
+  return txt || null;
+}
+
+function readPasted(cd: DataTransfer | null): string | null {
+  if (!cd) return null;
+  const txt = cd.getData("text/html") || cd.getData("text/plain");
+  return txt || null;
 }
