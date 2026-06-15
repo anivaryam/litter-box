@@ -105,3 +105,17 @@ describe("capacity", () => {
     expect(box.host.shadowRoot!.querySelector(".dropzone")).not.toBeNull();
   });
 });
+
+describe("events", () => {
+  it("emits litter:poop and litter:scoop with the id in detail", () => {
+    const box = mount();
+    const onP = vi.fn();
+    const onS = vi.fn();
+    box.host.addEventListener("litter:poop", onP);
+    box.host.addEventListener("litter:scoop", onS);
+    const id = box.poop("x")!;
+    box.scoop(id);
+    expect((onP.mock.calls[0][0] as CustomEvent).detail.id).toBe(id);
+    expect((onS.mock.calls[0][0] as CustomEvent).detail.id).toBe(id);
+  });
+});
