@@ -12,6 +12,11 @@
 
 **Working directory for all paths below:** the `litter-box/` project root (already a git repo with the spec committed).
 
+**Design direction (applies to `styles.ts` in Task 1/6 and `demo/index.html` in Task 10):**
+- **Box chrome** is deliberately restrained so it never outshines the sandboxed HTML it frames. Neutral slate, hairline borders, theme-adaptive via `prefers-color-scheme`. System font stack only (no web font loaded inside the shadow root — perf + offline). Green (`#22c55e`) appears only on drag-over; red (`#ef4444`) only on scoop hover. Motion 160–220ms with a `prefers-reduced-motion` guard.
+- **Demo page** is the showcase: "Exaggerated Minimalism" — dark `#0f172a` background, oversized **Fredoka** wordmark, **Nunito** body, green run-accent, subtle grain, staggered hero reveal.
+- Class names (`.box`, `.grid`, `.cell`, `.scoop`, `.dropzone`, `.dragover`), the `data-count` grid templates, and all element IDs in the demo are unchanged — the styling is cosmetic and does not alter any behavior the tests assert.
+
 ---
 
 ## File Structure
@@ -218,35 +223,94 @@ Expected: FAIL — cannot resolve `../src/core`.
 
 ```ts
 export const CHROME_CSS = `
-:host { display: block; box-sizing: border-box; width: 100%; height: 100%; }
+:host {
+  display: block; box-sizing: border-box; width: 100%; height: 100%;
+  --litter-gap: 10px;
+  --litter-radius: 14px;
+  --litter-bg: #f6f6f7;
+  --litter-surface: #ffffff;
+  --litter-border: rgba(15, 23, 42, 0.10);
+  --litter-ink: #475569;
+  --litter-accent: #22c55e;
+  --litter-danger: #ef4444;
+  --litter-shadow: 0 1px 2px rgba(15,23,42,.06), 0 8px 24px -12px rgba(15,23,42,.18);
+  --litter-tray: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v9'/%3E%3Cpath d='m8 10 4 4 4-4'/%3E%3Crect x='4' y='17' width='16' height='3' rx='1'/%3E%3C/svg%3E");
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :host {
+    --litter-bg: #0b1220;
+    --litter-surface: #0f172a;
+    --litter-border: rgba(148, 163, 184, 0.18);
+    --litter-ink: #94a3b8;
+    --litter-shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.6);
+  }
+}
 *, *::before, *::after { box-sizing: border-box; }
 .box {
   width: 100%; height: 100%;
   min-height: var(--litter-min-height, 240px);
-  padding: var(--litter-gap, 8px);
-  background: var(--litter-bg, #f4f4f5);
-  border-radius: var(--litter-radius, 12px);
+  padding: var(--litter-gap);
+  background: var(--litter-bg);
+  border-radius: var(--litter-radius);
 }
-.grid { display: grid; gap: var(--litter-gap, 8px); width: 100%; height: 100%; }
+.grid { display: grid; gap: var(--litter-gap); width: 100%; height: 100%; }
 .grid[data-count="1"] { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 .grid[data-count="2"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
 .grid[data-count="3"], .grid[data-count="4"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.cell { position: relative; background: #fff; border-radius: var(--litter-radius, 12px); overflow: hidden; border: 1px solid rgba(0,0,0,.08); }
+.cell {
+  position: relative; min-height: 0;
+  background: var(--litter-surface);
+  border: 1px solid var(--litter-border);
+  border-radius: calc(var(--litter-radius) - 2px);
+  overflow: hidden;
+  box-shadow: var(--litter-shadow);
+  animation: litter-in 220ms cubic-bezier(.2,.7,.2,1) both;
+}
 .cell iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
 .scoop {
-  position: absolute; top: 6px; right: 6px; z-index: 2;
-  width: 24px; height: 24px; border: 0; border-radius: 50%;
-  background: rgba(0,0,0,.55); color: #fff; cursor: pointer;
-  font: 14px/1 system-ui, sans-serif;
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: 999px; cursor: pointer;
+  background: rgba(15, 23, 42, .55); color: #fff;
+  font: 600 16px/1 ui-sans-serif, system-ui, sans-serif;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: background 160ms ease, transform 160ms ease;
 }
-.scoop:hover { background: rgba(0,0,0,.8); }
+.scoop:hover { background: var(--litter-danger); transform: scale(1.06); }
+.scoop:active { transform: scale(.94); }
+.scoop:focus-visible { outline: 2px solid var(--litter-accent); outline-offset: 2px; }
 .dropzone {
-  display: grid; place-items: center; text-align: center;
-  border: 2px dashed rgba(0,0,0,.25); border-radius: var(--litter-radius, 12px);
-  color: rgba(0,0,0,.55); font: 14px system-ui, sans-serif; cursor: copy;
-  padding: 16px; min-height: 80px;
+  display: grid; place-items: center; gap: 6px; text-align: center;
+  padding: 16px; min-height: 88px;
+  border: 1.5px dashed var(--litter-border);
+  border-radius: calc(var(--litter-radius) - 2px);
+  color: var(--litter-ink);
+  font-size: 13px; font-weight: 600; letter-spacing: .01em;
+  cursor: copy;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
-.dropzone.dragover { border-color: #6366f1; background: rgba(99,102,241,.06); color: #4f46e5; }
+.dropzone::before {
+  content: ""; width: 22px; height: 22px; display: block;
+  background: currentColor;
+  -webkit-mask: var(--litter-tray) center / contain no-repeat;
+          mask: var(--litter-tray) center / contain no-repeat;
+  opacity: .8;
+}
+.dropzone.dragover {
+  border-color: var(--litter-accent);
+  background: color-mix(in srgb, var(--litter-accent) 8%, transparent);
+  color: color-mix(in srgb, var(--litter-accent) 70%, var(--litter-ink));
+}
+.dropzone:focus-visible { outline: 2px solid var(--litter-accent); outline-offset: 2px; }
+@keyframes litter-in {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cell { animation: none; }
+  .scoop, .dropzone { transition: none; }
+}
 `;
 ```
 
@@ -1008,35 +1072,110 @@ git commit -m "feat: barrel entry, ESM/CJS/IIFE build"
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>litter box demo</title>
+  <title>litter box — isolated HTML sandbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { font: 16px system-ui, sans-serif; margin: 24px; color: #18181b; }
-    litter-box { display: block; height: 70vh; }
-    .controls { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    button { font: inherit; padding: 6px 12px; cursor: pointer; }
+    :root {
+      --bg:#0b1120; --ink:#f8fafc; --muted:#94a3b8;
+      --line:rgba(148,163,184,.16); --accent:#22c55e; --accent-ink:#04140a; --danger:#ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background:
+        radial-gradient(900px 500px at 85% -10%, rgba(34,197,94,.10), transparent 60%),
+        radial-gradient(700px 500px at -10% 10%, rgba(56,189,248,.08), transparent 55%),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .04;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: clamp(24px,6vw,72px) clamp(20px,5vw,48px); }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
+      border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px;
+    }
+    .eyebrow .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 0 4px rgba(34,197,94,.18); }
+    h1.wordmark {
+      font-family: "Fredoka", sans-serif; font-weight: 700;
+      font-size: clamp(3.2rem, 13vw, 9rem); line-height: .92; letter-spacing: -.03em;
+      margin: .32em 0 .12em;
+      background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .lede { max-width: 46ch; font-size: clamp(1rem, 2.2vw, 1.3rem); color: var(--muted); line-height: 1.55; margin: 0 0 28px; }
+    .lede b { color: var(--ink); font-weight: 700; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 22px; }
+    .btn {
+      font: 700 14px/1 "Nunito", sans-serif; cursor: pointer; border-radius: 999px;
+      padding: 11px 18px; border: 1px solid var(--line); background: transparent; color: var(--ink);
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); border-color: rgba(148,163,184,.4); }
+    .btn:active { transform: translateY(0); }
+    .btn--primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+    .btn--danger:hover { border-color: var(--danger); color: #fecaca; }
+    .count { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); font-size: 14px; }
+    .tray {
+      position: relative; border: 1px solid var(--line); border-radius: 20px; padding: 14px;
+      background: linear-gradient(180deg, rgba(15,23,42,.6), rgba(2,6,23,.6));
+      box-shadow: 0 30px 80px -40px rgba(0,0,0,.8);
+    }
+    .tray::after {
+      content: "sandbox"; position: absolute; top: -9px; left: 18px;
+      font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--muted); background: var(--bg); padding: 0 8px;
+    }
+    litter-box { display: block; height: min(64vh, 560px); }
+    .foot { margin-top: 18px; color: var(--muted); font-size: 13px; }
+    .foot code { font-family: ui-monospace, monospace; color: var(--ink); background: rgba(148,163,184,.12); padding: 2px 6px; border-radius: 6px; }
+    .reveal { opacity: 0; transform: translateY(14px); animation: rise .7s cubic-bezier(.2,.7,.2,1) forwards; }
+    .reveal:nth-child(2) { animation-delay: .06s; }
+    .reveal:nth-child(3) { animation-delay: .12s; }
+    .reveal:nth-child(4) { animation-delay: .18s; }
+    .reveal:nth-child(5) { animation-delay: .24s; }
+    .reveal:nth-child(6) { animation-delay: .30s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .reveal { animation: none; opacity: 1; transform: none; } }
   </style>
 </head>
 <body>
-  <h1>litter box</h1>
-  <div class="controls">
-    <button id="poop">poop sample</button>
-    <button id="poop-evil">poop escape-attempt</button>
-    <button id="scoop-all">scoop all</button>
-    <span id="count">0 shits</span>
-  </div>
-  <litter-box id="box" max="4"></litter-box>
+  <main class="wrap">
+    <span class="eyebrow reveal"><span class="dot"></span> isolated html sandbox</span>
+    <h1 class="wordmark reveal">litter&nbsp;box</h1>
+    <p class="lede reveal">Drop any HTML into the box. It renders like a fresh browser tab — <b>fully sealed</b>. Its styles, its scripts, its mess: none of it leaks out, and your page never leaks in. <b>Poop</b> it in, <b>scoop</b> it out. Four at a time.</p>
+    <div class="controls reveal">
+      <button id="poop" class="btn btn--primary">poop sample</button>
+      <button id="poop-evil" class="btn">poop escape-attempt</button>
+      <button id="scoop-all" class="btn btn--danger">scoop all</button>
+      <span id="count" class="count">0 shits</span>
+    </div>
+    <div class="tray reveal">
+      <litter-box id="box" max="4"></litter-box>
+    </div>
+    <p class="foot reveal">Try the <b>escape-attempt</b> — it tries to recolor this page from inside the sandbox. It can't. <code>&lt;litter-box max="4"&gt;&lt;/litter-box&gt;</code></p>
+  </main>
 
   <script src="/dist/litter-box.global.js"></script>
   <script>
     const box = document.getElementById('box');
     const count = document.getElementById('count');
 
-    const sample = `<!doctype html><html><body style="font-family:sans-serif;padding:16px;background:#eef2ff">
-      <h2>hello from inside</h2>
-      <button onclick="document.body.style.background='#fee2e2'">click me</button>
+    const sample = `<!doctype html><html><body style="font-family:system-ui,sans-serif;margin:0;padding:24px;background:#eef2ff;color:#1e1b4b">
+      <h2 style="margin:0 0 12px">hello from inside</h2>
+      <p>I'm a whole document in my own little world.</p>
+      <button onclick="document.body.style.background='#fee2e2'">recolor my world</button>
     </body></html>`;
 
-    const evil = `<!doctype html><html><body>escape attempt<script>
+    const evil = `<!doctype html><html><body style="font-family:system-ui;padding:24px;color:#7f1d1d">escape attempt<script>
       try { parent.document.body.style.background = 'red'; } catch (e) {}
       document.body.setAttribute('data-ran', '1');
     <\/script></body></html>`;
