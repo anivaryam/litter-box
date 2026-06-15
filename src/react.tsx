@@ -11,6 +11,7 @@ export interface LitterBoxHandle {
 
 export interface LitterBoxProps {
   max?: number;
+  sandbox?: string;
   className?: string;
   style?: CSSProperties;
   onPoop?: (id: string) => void;
@@ -19,7 +20,7 @@ export interface LitterBoxProps {
 }
 
 export const LitterBox = forwardRef<LitterBoxHandle, LitterBoxProps>(
-  function LitterBox({ max = 4, className, style, onPoop, onScoop, onFull }, ref) {
+  function LitterBox({ max = 4, sandbox, className, style, onPoop, onScoop, onFull }, ref) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const engineRef = useRef<Engine | null>(null);
     const cbs = useRef({ onPoop, onScoop, onFull });
@@ -27,7 +28,7 @@ export const LitterBox = forwardRef<LitterBoxHandle, LitterBoxProps>(
 
     useEffect(() => {
       const host = hostRef.current!;
-      const engine = new Engine(host, { max });
+      const engine = new Engine(host, { max, sandbox });
       engineRef.current = engine;
 
       const onP = (e: Event) => cbs.current.onPoop?.((e as CustomEvent).detail.id);
@@ -44,7 +45,7 @@ export const LitterBox = forwardRef<LitterBoxHandle, LitterBoxProps>(
         engine.destroy();
         engineRef.current = null;
       };
-    }, [max]);
+    }, [max, sandbox]);
 
     useImperativeHandle(ref, (): LitterBoxHandle => ({
       poop: (html, opts) => engineRef.current?.poop(html, opts) ?? null,

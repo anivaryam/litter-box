@@ -2,10 +2,14 @@ import { CHROME_CSS } from "./styles";
 
 export interface LitterBoxOptions {
   max?: number;
+  /** Override the iframe sandbox token string for every shit. */
+  sandbox?: string;
 }
 
 export interface PoopOptions {
   title?: string;
+  /** Override the iframe sandbox token string for this one shit. */
+  sandbox?: string;
 }
 
 interface Slot {
@@ -16,23 +20,55 @@ interface Slot {
 
 const MAX_CAP = 4;
 
+/**
+ * Default iframe sandbox. Deliberately omits `allow-same-origin` so each shit
+ * stays an opaque origin that cannot reach the parent page, its cookies, or its
+ * storage. The other tokens let normal apps actually work — submit forms, open
+ * dialogs/popups, and trigger downloads (e.g. an XLSX export) — "like opening
+ * the file in a real browser tab".
+ */
+export const DEFAULT_SANDBOX =
+  "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads";
+
 export class LitterBox {
   readonly host: HTMLElement;
   readonly max: number;
+  readonly sandbox: string;
   private root: ShadowRoot;
+  private box: HTMLDivElement;
   private grid: HTMLDivElement;
-  private dropzone: HTMLDivElement;
+  private empty: HTMLDivElement;
+  private addBtn: HTMLButtonElement;
+  private fileInput: HTMLInputElement;
   private slots: Slot[] = [];
   private seq = 0;
+  private dragDepth = 0;
 
   constructor(host: HTMLElement, options: LitterBoxOptions = {}) {
     this.host = host;
     this.max = Math.min(options.max ?? MAX_CAP, MAX_CAP);
+    this.sandbox = options.sandbox ?? DEFAULT_SANDBOX;
     this.root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
     this.root.innerHTML =
-      `<style>${CHROME_CSS}</style><div class="box"><div class="grid" part="grid"></div></div>`;
+      `<style>${CHROME_CSS}</style>` +
+      `<div class="box" tabindex="0">` +
+        `<div class="grid" part="grid"></div>` +
+        `<div class="empty" tabindex="0" role="button" aria-label="Add HTML">` +
+          `<div class="empty-art"></div>` +
+          `<p class="empty-title">Drop HTML here</p>` +
+          `<p class="empty-sub">drag a .html file · paste · or click to browse</p>` +
+        `</div>` +
+        `<button class="add" type="button" part="add" aria-label="Add HTML" title="Add HTML">+</button>` +
+        `<div class="overlay"><span>Drop to poop</span></div>` +
+        `<input class="file" type="file" accept=".html,.htm,text/html" hidden />` +
+      `</div>`;
+    this.box = this.root.querySelector(".box")!;
     this.grid = this.root.querySelector(".grid")!;
-    this.dropzone = this.buildDropzone();
+    this.empty = this.root.querySelector(".empty")!;
+    this.addBtn = this.root.querySelector(".add")!;
+    this.fileInput = this.root.querySelector(".file")!;
+    this.wireInput();
+    this.wireDragAndPaste();
     this.render();
   }
 
@@ -47,7 +83,7 @@ export class LitterBox {
     }
     const id = `shit-${++this.seq}`;
     const iframe = document.createElement("iframe");
-    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.setAttribute("sandbox", opts.sandbox ?? this.sandbox);
     iframe.setAttribute("title", opts.title ?? id);
     iframe.srcdoc = html;
 
@@ -64,6 +100,7 @@ export class LitterBox {
 
     cell.append(scoop, iframe);
     this.slots.push({ id, iframe, cell });
+    this.grid.appendChild(cell);
     this.render();
     this.emit("litter:poop", { id });
     return id;
@@ -89,40 +126,68 @@ export class LitterBox {
   }
 
   private render(): void {
-    const full = this.slots.length >= this.max;
-    const tiles = full ? this.slots.length : this.slots.length + 1;
-    this.grid.dataset.count = String(Math.max(tiles, 1));
-    this.slots.forEach((s) => this.grid.appendChild(s.cell));
-    if (full) {
-      this.dropzone.remove();
-    } else {
-      this.grid.appendChild(this.dropzone);
-    }
+    const n = this.slots.length;
+    const full = n >= this.max;
+    // Grid lays out shits ONLY, so a single shit fills the whole box and the
+    // layout reflows (1 → full, 2 → side-by-side, 3-4 → 2x2) as more arrive.
+    this.grid.dataset.count = String(n);
+    this.empty.hidden = n !== 0; // full-box prompt only when truly empty
+    this.addBtn.hidden = full || n === 0; // floating "+" only when partially full
   }
 
-  private buildDropzone(): HTMLDivElement {
-    const dz = document.createElement("div");
-    dz.className = "dropzone";
-    dz.textContent = "Drop .html here or paste HTML";
-    dz.tabIndex = 0;
-
-    dz.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dz.classList.add("dragover");
+  private wireInput(): void {
+    const open = (): void => {
+      if (this.slots.length < this.max) this.fileInput.click();
+    };
+    this.addBtn.addEventListener("click", open);
+    this.empty.addEventListener("click", open);
+    this.empty.addEventListener("keydown", (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === "Enter" || key === " ") {
+        e.preventDefault();
+        open();
+      }
     });
-    dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
-    dz.addEventListener("drop", (e) => {
+    this.fileInput.addEventListener("change", () => {
+      const file = this.fileInput.files?.[0];
+      this.fileInput.value = ""; // allow re-picking the same file
+      if (file) void file.text().then((html) => this.poop(html));
+    });
+  }
+
+  private wireDragAndPaste(): void {
+    // Whole-box drag handling. dragenter/leave are reference-counted because
+    // they also fire when crossing child boundaries. While dragging, a full-box
+    // overlay is shown that covers any child iframes — without it, a drag over a
+    // sandboxed iframe is swallowed by that frame and never reaches us.
+    const hide = (): void => {
+      this.dragDepth = 0;
+      this.box.classList.remove("dragging");
+    };
+    this.box.addEventListener("dragenter", (e) => {
       e.preventDefault();
-      dz.classList.remove("dragover");
+      this.dragDepth++;
+      if (this.slots.length < this.max) this.box.classList.add("dragging");
+    });
+    this.box.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const dt = (e as DragEvent).dataTransfer;
+      if (dt) dt.dropEffect = "copy";
+    });
+    this.box.addEventListener("dragleave", () => {
+      if (--this.dragDepth <= 0) hide();
+    });
+    this.box.addEventListener("drop", (e) => {
+      e.preventDefault();
+      hide();
       void readDropped((e as DragEvent).dataTransfer).then((html) => {
         if (html != null) this.poop(html);
       });
     });
-    dz.addEventListener("paste", (e) => {
+    this.box.addEventListener("paste", (e) => {
       const html = readPasted((e as ClipboardEvent).clipboardData);
       if (html != null) this.poop(html);
     });
-    return dz;
   }
 
   private emit(type: string, detail: Record<string, unknown>): void {

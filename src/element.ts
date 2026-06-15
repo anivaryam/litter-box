@@ -6,7 +6,8 @@ export class LitterBoxElement extends HTMLElement {
   connectedCallback(): void {
     if (this.engine) return;
     const max = Number(this.getAttribute("max") ?? 4) || 4;
-    this.engine = new LitterBox(this, { max });
+    const sandbox = this.getAttribute("sandbox") ?? undefined;
+    this.engine = new LitterBox(this, { max, sandbox });
   }
 
   disconnectedCallback(): void {
