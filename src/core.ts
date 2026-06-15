@@ -40,6 +40,35 @@ export class LitterBox {
     return this.slots.map((s) => s.id);
   }
 
+  poop(html: string, opts: PoopOptions = {}): string | null {
+    if (this.slots.length >= this.max) {
+      this.emit("litter:full", {});
+      return null;
+    }
+    const id = `shit-${++this.seq}`;
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.setAttribute("title", opts.title ?? id);
+    iframe.srcdoc = html;
+
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.dataset.id = id;
+
+    const scoop = document.createElement("button");
+    scoop.className = "scoop";
+    scoop.type = "button";
+    scoop.setAttribute("aria-label", `Scoop ${opts.title ?? id}`);
+    scoop.textContent = "×";
+    scoop.addEventListener("click", () => this.scoop(id));
+
+    cell.append(scoop, iframe);
+    this.slots.push({ id, iframe, cell });
+    this.render();
+    this.emit("litter:poop", { id });
+    return id;
+  }
+
   destroy(): void {
     this.root.innerHTML = "";
     this.slots = [];

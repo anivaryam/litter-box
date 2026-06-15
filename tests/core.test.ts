@@ -30,3 +30,34 @@ describe("LitterBox skeleton", () => {
     expect(box.max).toBe(4);
   });
 });
+
+describe("poop", () => {
+  it("adds an iframe, returns an id, and updates the list", () => {
+    const box = mount();
+    const id = box.poop("<p>x</p>");
+    expect(id).toMatch(/^shit-/);
+    expect(box.list()).toEqual([id]);
+    expect(box.host.shadowRoot!.querySelectorAll("iframe").length).toBe(1);
+  });
+
+  it("sandboxes the iframe with allow-scripts and sets srcdoc", () => {
+    const box = mount();
+    box.poop("<p>hello</p>");
+    const f = box.host.shadowRoot!.querySelector("iframe")!;
+    expect(f.getAttribute("sandbox")).toBe("allow-scripts");
+    expect(f.getAttribute("srcdoc")).toContain("<p>hello</p>");
+  });
+
+  it("renders a scoop button per cell", () => {
+    const box = mount();
+    box.poop("<p>x</p>");
+    expect(box.host.shadowRoot!.querySelectorAll(".cell .scoop").length).toBe(1);
+  });
+
+  it("grows grid data-count as shits are added", () => {
+    const box = mount();
+    const grid = box.host.shadowRoot!.querySelector(".grid") as HTMLElement;
+    box.poop("a");
+    expect(grid.dataset.count).toBe("2"); // 1 shit + dropzone tile
+  });
+});
