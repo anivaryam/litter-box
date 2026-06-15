@@ -61,3 +61,26 @@ describe("poop", () => {
     expect(grid.dataset.count).toBe("2"); // 1 shit + dropzone tile
   });
 });
+
+describe("scoop", () => {
+  it("removes the matching shit and its iframe", () => {
+    const box = mount();
+    const id = box.poop("<p>x</p>")!;
+    expect(box.scoop(id)).toBe(true);
+    expect(box.list()).toEqual([]);
+    expect(box.host.shadowRoot!.querySelectorAll("iframe").length).toBe(0);
+  });
+
+  it("returns false for an unknown id", () => {
+    const box = mount();
+    expect(box.scoop("nope")).toBe(false);
+  });
+
+  it("scoopAll clears every shit", () => {
+    const box = mount();
+    box.poop("a");
+    box.poop("b");
+    box.scoopAll();
+    expect(box.list()).toEqual([]);
+  });
+});

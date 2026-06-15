@@ -69,6 +69,20 @@ export class LitterBox {
     return id;
   }
 
+  scoop(id: string): boolean {
+    const i = this.slots.findIndex((s) => s.id === id);
+    if (i === -1) return false;
+    this.slots[i].cell.remove();
+    this.slots.splice(i, 1);
+    this.render();
+    this.emit("litter:scoop", { id });
+    return true;
+  }
+
+  scoopAll(): void {
+    [...this.slots].forEach((s) => this.scoop(s.id));
+  }
+
   destroy(): void {
     this.root.innerHTML = "";
     this.slots = [];
