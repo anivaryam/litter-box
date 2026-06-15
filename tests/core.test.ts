@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { LitterBox } from "../src/core";
 
 beforeEach(() => { document.body.innerHTML = ""; });
@@ -82,5 +82,26 @@ describe("scoop", () => {
     box.poop("b");
     box.scoopAll();
     expect(box.list()).toEqual([]);
+  });
+});
+
+describe("capacity", () => {
+  it("rejects the 5th poop and emits litter:full", () => {
+    const box = mount();
+    const full = vi.fn();
+    box.host.addEventListener("litter:full", full);
+    for (let i = 0; i < 4; i++) expect(box.poop("<p>x</p>")).not.toBeNull();
+    expect(box.poop("<p>x</p>")).toBeNull();
+    expect(full).toHaveBeenCalledTimes(1);
+    expect(box.list().length).toBe(4);
+  });
+
+  it("hides the dropzone when full and shows it again after a scoop", () => {
+    const box = mount();
+    let id = "";
+    for (let i = 0; i < 4; i++) id = box.poop("x")!;
+    expect(box.host.shadowRoot!.querySelector(".dropzone")).toBeNull();
+    box.scoop(id);
+    expect(box.host.shadowRoot!.querySelector(".dropzone")).not.toBeNull();
   });
 });
