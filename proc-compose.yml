@@ -1,0 +1,14 @@
+# Dev stack: rebuild the bundle on change, serve the demo.
+# Open http://localhost:5173/demo/index.html
+processes:
+  build:
+    cmd: npx tsup --watch
+    restart: on-failure
+    ready_when:
+      log: "Build success"        # demo loads /dist/litter-box.global.js
+  demo:
+    cmd: npx -y serve -l 5173 .
+    depends_on: [build]
+    restart: on-failure
+    ready_when:
+      tcp: localhost:5173
